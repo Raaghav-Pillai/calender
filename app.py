@@ -51,242 +51,47 @@ def page_input():
 
     col1, col2 = st.columns(2)
     with col1:
-        name = st.text_input("Full Name", key="input_name")
+        name = st.text_input("Full Name")
     with col2:
-        role = st.radio("Role", ["Primary", "Secondary"], key="input_role")
+        role = st.radio("Role", ["Primary", "Secondary"])
 
     dates = get_date_range()
     date_strs = [d.strftime("%Y-%m-%d") for d in dates]
-    date_labels = [d.strftime("%b %d") for d in dates]
     time_slots = get_time_slots()
 
+    # Create an empty DataFrame for the grid
+    # Users will check boxes (True/False)
+    # Rows: Time Slots, Columns: Dates
+    df_template = pd.DataFrame(False, index=time_slots, columns=date_strs)
+
     st.subheader("Select Free Time Blocks")
-    st.caption("💡 **Tip:** Click and drag across cells to quickly select multiple time slots! Click a selected cell to deselect.")
+    edited_df = st.data_editor(
+        df_template,
+        use_container_width=True,
+        height=600,
+        key="availability_grid"
+    )
 
-    # Load existing data for this user if they're updating
-    current_data = load_data()
-    existing_entry = next((d for d in current_data if d["name"] == name), None)
-    existing_slots = set(existing_entry["availability"]) if existing_entry else set()
-
-    # Initialize session state for selections if not exists
-    if 'selected_cells' not in st.session_state:
-        st.session_state.selected_cells = existing_slots.copy()
-
-    # Create interactive grid using HTML/CSS/JS with bidirectional communication
-    grid_id = "availability_grid_v2"
-    
-    # Build the grid HTML
-    grid_html = f"""
-    <style>
-        .availability-grid {{
-            display: inline-block;
-            border: 2px solid #4CAF50;
-            border-radius: 10px;
-            overflow: hidden;
-            margin: 20px 0;
-            user-select: none;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }}
-        .grid-row {{
-            display: flex;
-        }}
-        .grid-cell {{
-            width: 80px;
-            height: 35px;
-            border: 1px solid #e0e0e0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.15s ease;
-            font-size: 11px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        }}
-        .grid-header {{
-            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-            color: white;
-            font-weight: 600;
-            cursor: default;
-            font-size: 12px;
-        }}
-        .grid-time-label {{
-            background-color: #f8f9fa;
-            font-weight: 500;
-            cursor: default;
-            width: 70px;
-            color: #495057;
-        }}
-        .grid-cell.selected {{
-            background: linear-gradient(135deg, #66BB6A 0%, #4CAF50 100%);
-            color: white;
-            font-weight: 600;
-            transform: scale(0.95);
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
-        }}
-        .grid-cell.selectable:hover {{
-            background-color: #E8F5E9;
-            transform: scale(1.05);
-        }}
-        .grid-cell.selected:hover {{
-            background: linear-gradient(135deg, #81C784 0%, #66BB6A 100%);
-        }}
-        .selection-count {{
-            margin-top: 15px;
-            padding: 10px 15px;
-            background-color: #E3F2FD;
-            border-left: 4px solid #2196F3;
-            border-radius: 4px;
-            font-weight: 500;
-            color: #1976D2;
-        }}
-    </style>
-    
-    <div class="availability-grid" id="{grid_id}">
-        <div class="grid-row">
-            <div class="grid-cell grid-time-label"></div>
-            {' '.join(f'<div class="grid-cell grid-header">{label}</div>' for label in date_labels)}
-        </div>
-        {''.join(f'''
-        <div class="grid-row">
-            <div class="grid-cell grid-time-label">{time_slot}</div>
-            {' '.join(f'<div class="grid-cell selectable" data-slot="{date_str}T{time_slot}:00" onclick="toggleSlot(this)"></div>' for date_str in date_strs)}
-        </div>
-        ''' for time_slot in time_slots)}
-    </div>
-    
-    <div class="selection-count" id="selectionCount">Selected: 0 time slots</div>
-    
-    <input type="hidden" id="selectedSlotsInput" value="">
-    
-    <script>
-        let isMouseDown = false;
-        let startMode = null;
-        const selectedSlots = new Set({json.dumps(list(existing_slots))});
-        
-        const grid = document.getElementById('{grid_id}');
-        const selectableCells = grid.querySelectorAll('.grid-cell.selectable');
-        const countDisplay = document.getElementById('selectionCount');
-        const hiddenInput = document.getElementById('selectedSlotsInput');
-        
-        // Initialize grid with existing selections
-        function initializeGrid() {{
-            selectableCells.forEach(cell => {{
-                const slot = cell.getAttribute('data-slot');
-                if (selectedSlots.has(slot)) {{
-                    cell.classList.add('selected');
-                    cell.textContent = '✓';
-                }}
-            }});
-            updateCount();
-        }}
-        
-        // Toggle individual slot
-        function toggleSlot(cell) {{
-            const slot = cell.getAttribute('data-slot');
-            if (selectedSlots.has(slot)) {{
-                selectedSlots.delete(slot);
-                cell.classList.remove('selected');
-                cell.textContent = '';
-            }} else {{
-                selectedSlots.add(slot);
-                cell.classList.add('selected');
-                cell.textContent = '✓';
-            }}
-            updateCount();
-            updateHiddenInput();
-        }}
-        
-        // Drag selection
-        selectableCells.forEach(cell => {{
-            cell.addEventListener('mousedown', (e) => {{
-                e.preventDefault();
-                isMouseDown = true;
-                const slot = cell.getAttribute('data-slot');
-                startMode = selectedSlots.has(slot) ? 'deselect' : 'select';
-                applyMode(cell);
-            }});
-            
-            cell.addEventListener('mouseenter', () => {{
-                if (isMouseDown) {{
-                    applyMode(cell);
-                }}
-            }});
-            
-            cell.addEventListener('mouseup', () => {{
-                isMouseDown = false;
-            }});
-        }});
-        
-        document.addEventListener('mouseup', () => {{
-            isMouseDown = false;
-        }});
-        
-        function applyMode(cell) {{
-            const slot = cell.getAttribute('data-slot');
-            if (startMode === 'select' && !selectedSlots.has(slot)) {{
-                selectedSlots.add(slot);
-                cell.classList.add('selected');
-                cell.textContent = '✓';
-            }} else if (startMode === 'deselect' && selectedSlots.has(slot)) {{
-                selectedSlots.delete(slot);
-                cell.classList.remove('selected');
-                cell.textContent = '';
-            }}
-            updateCount();
-            updateHiddenInput();
-        }}
-        
-        function updateCount() {{
-            countDisplay.textContent = `Selected: ${{selectedSlots.size}} time slot${{selectedSlots.size !== 1 ? 's' : ''}}`;
-        }}
-        
-        function updateHiddenInput() {{
-            hiddenInput.value = JSON.stringify(Array.from(selectedSlots));
-        }}
-        
-        // Make function globally accessible
-        window.getSelectedSlots = function() {{
-            return Array.from(selectedSlots);
-        }};
-        
-        initializeGrid();
-    </script>
-    """
-    
-    st.components.v1.html(grid_html, height=750, scrolling=True)
-    
-    # Instructions
-    st.markdown("---")
-    st.markdown("### 📤 Submit Your Availability")
-    
-    col_a, col_b = st.columns([3, 1])
-    with col_a:
-        st.info("After selecting your time slots above, click the button to save your availability.")
-    
-    # Manual input as backup
-    with st.expander("🔧 Advanced: Manual Input (if drag selection doesn't work)"):
-        manual_slots = st.text_area(
-            "Paste selected slots JSON here:",
-            value="[]",
-            height=100,
-            key="manual_slots_input",
-            help="If the drag selection isn't working, open browser console (F12), run: JSON.stringify(window.getSelectedSlots()), and paste the result here."
-        )
-
-    if st.button("✅ Submit Availability", type="primary", use_container_width=True):
+    if st.button("Submit Availability"):
         if not name:
-            st.error("❌ Please enter your name.")
+            st.error("Please enter your name.")
             return
 
-        # Try to get selections from manual input first
-        try:
-            selected_slots = json.loads(manual_slots)
-            if not selected_slots or selected_slots == []:
-                st.warning("⚠️ No time slots selected. Please select at least one time slot.")
-                st.info("💡 **Tip:** Open your browser console (press F12), run this command:\n\n`JSON.stringify(window.getSelectedSlots())`\n\nThen copy the output and paste it in the 'Advanced: Manual Input' section above.")
-                return
-        except:
-            st.error("❌ Invalid selection data. Please use the manual input method in the Advanced section.")
+        # transform dataframe to list of overlapping intervals or just a list of datetime strings?
+        # The PRD says: "slot_id": "2026-02-13T14:00:00"
+        # We need to collect all True cells.
+        
+        selected_slots = []
+        for date_col in date_strs:
+            for time_row in time_slots:
+                if edited_df.at[time_row, date_col]:
+                    # Construct valid ISO datetime string
+                    # Note: These are naive datetimes based on the agreed timezone (implied local or CST based on UIUC context)
+                    slot_iso = f"{date_col}T{time_row}:00"
+                    selected_slots.append(slot_iso)
+
+        if not selected_slots:
+            st.warning("You haven't selected any time slots.")
             return
 
         # Prepare payload
@@ -299,12 +104,12 @@ def page_input():
 
         # Load existing data, remove old entry for this name if exists, and append new
         current_data = load_data()
+        # Filter out previous submission by same name to allow updates
         current_data = [d for d in current_data if d["name"] != name]
         current_data.append(entry)
         
         save_data(current_data)
-        st.success(f"✅ Availability saved for **{name}** ({role})! You selected **{len(selected_slots)}** time slots.")
-        st.balloons()
+        st.success(f"Availability saved for {name} ({role})!")
 
 # --- Page: Admin Dashboard ---
 
@@ -323,10 +128,12 @@ def page_admin():
     time_slots = get_time_slots()
 
     # Initialize count grids
+    # We need to count Primaries and Secondaries for each cell
     primary_counts = pd.DataFrame(0, index=time_slots, columns=date_strs)
     secondary_counts = pd.DataFrame(0, index=time_slots, columns=date_strs)
     
-    slot_details = {}
+    # Store names for tooltips or detailed view
+    slot_details = {} # Key: "date|time", Value: {"primaries": [], "secondaries": []}
 
     # Populate logic
     for entry in data:
@@ -334,11 +141,12 @@ def page_admin():
         avail_slots = entry["availability"]
         
         for slot_iso in avail_slots:
+            # slot_iso format: "YYYY-MM-DDTHH:MM:SS"
             parts = slot_iso.split("T")
             if len(parts) != 2:
                 continue
             date_part = parts[0]
-            time_part = parts[1][:5]
+            time_part = parts[1][:5] # HH:MM
             
             if date_part in date_strs and time_part in time_slots:
                 if role == "Primary":
@@ -356,12 +164,16 @@ def page_admin():
                     slot_details[key]["secondaries"].append(entry["name"])
 
     # Create Viability Grid
+    # Condition: Primary >= 1 AND Secondary >= 1
     viability_grid = (primary_counts >= 1) & (secondary_counts >= 1)
 
     # Visualization
     st.subheader("Viable Time Slots (Golden Window)")
     st.caption("Green = At least 1 Primary and 1 Secondary available.")
 
+    # We can use style to highlight text or background
+    # But st.dataframe with styling is easier
+    
     def highlight_viable(val):
         color = 'lightgreen' if val else 'white'
         return f'background-color: {color}'

@@ -7,10 +7,7 @@ A custom availability aggregator designed for **Revamp AI Consulting** to identi
 - **Role-Based Input**: Users identify as "Primary" or "Secondary" before submitting
 - **Date Window**: Feb 13th – Feb 21st, 2026
 - **Time Slots**: 9:00 AM - 9:00 PM (30-minute intervals)
-- **🎯 Drag-to-Select**: Click and drag across the grid to quickly select multiple time slots at once!
-- **Visual Feedback**: Selected cells turn green with checkmarks (✓) for easy confirmation
-- **Real-time Counter**: See exactly how many time slots you've selected
-- **Interactive Grid**: Smooth, responsive interface with hover effects
+- **Interactive Grid**: Easy checkbox-style interface for selecting availability
 - **Golden Window Logic**: Automatically identifies viable meeting times
 - **Persistent Storage**: All submissions saved to `availability.json`
 
@@ -37,17 +34,10 @@ The app will open in your browser at `http://localhost:8501`
 1. Navigate to **Input Availability** in the sidebar
 2. Enter your **Full Name**
 3. Select your **Role** (Primary or Secondary)
-4. **Select your available times** using the interactive grid:
-   - **Click and drag** across cells to quickly select multiple time slots
-   - Selected cells turn **green** with a **✓** checkmark
-   - Click a selected cell again to deselect it
-   - The counter at the bottom shows how many slots you've selected
-5. **Submit your availability**:
-   - Open browser console (press **F12**)
-   - Run: `JSON.stringify(window.getSelectedSlots())`
-   - Copy the output
-   - Paste it in the "Advanced: Manual Input" section
-   - Click **Submit Availability**
+4. Click on the grid cells to mark your available times
+   - Rows = Time slots (9:00 AM - 9:00 PM)
+   - Columns = Dates (Feb 13-21, 2026)
+5. Click **Submit Availability**
 
 ### For Admin (View Results)
 
