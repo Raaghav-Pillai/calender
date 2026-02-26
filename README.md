@@ -8,6 +8,7 @@ A custom availability aggregator designed for **Revamp AI Consulting** to identi
 - **Date Window**: Feb 13th – Feb 21st, 2026
 - **Time Slots**: 9:00 AM - 9:00 PM (30-minute intervals)
 - **Interactive Grid**: Easy checkbox-style interface for selecting availability
+- **Edit Functionality**: Team members can update their submissions anytime
 - **Golden Window Logic**: Automatically identifies viable meeting times
 - **Persistent Storage**: All submissions saved to `availability.json`
 
@@ -38,6 +39,15 @@ The app will open in your browser at `http://localhost:8501`
    - Rows = Time slots (9:00 AM - 9:00 PM)
    - Columns = Dates (Feb 13-21, 2026)
 5. Click **Submit Availability**
+
+#### Editing Your Submission
+
+- To **edit** your availability, simply enter your name again
+- The app will automatically load your previous submission
+- You'll see a blue info message: "📝 Editing existing submission..."
+- Your previously selected times will be pre-checked in the grid
+- Make your changes and click **Update Availability**
+- Your submission will be updated with the new times
 
 ### For Admin (View Results)
 

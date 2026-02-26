@@ -7,8 +7,8 @@ from datetime import timedelta
 
 # --- Configuration ---
 DATA_FILE = "availability.json"
-START_DATE = datetime.date(2026, 2, 13)
-END_DATE = datetime.date(2026, 2, 21)
+START_DATE = datetime.date(2026, 2, 27)
+END_DATE = datetime.date(2026, 3, 8)
 START_HOUR = 9
 END_HOUR = 21
 
@@ -48,31 +48,58 @@ def get_time_slots():
 def page_input():
     st.title("Member Availability Input")
     st.write("Please enter your name, role, and select your available times.")
+    
+    # Load existing data to check for previous submissions
+    current_data = load_data()
 
     col1, col2 = st.columns(2)
     with col1:
-        name = st.text_input("Full Name")
+        name = st.text_input("Full Name", key="name_input")
     with col2:
-        role = st.radio("Role", ["Primary", "Secondary"])
+        # Find existing submission for this name
+        existing_entry = None
+        default_role_index = 0
+        if name:
+            for entry in current_data:
+                if entry["name"] == name:
+                    existing_entry = entry
+                    default_role_index = 0 if entry["role"] == "Primary" else 1
+                    break
+        
+        role = st.radio("Role", ["Primary", "Secondary"], index=default_role_index, key="role_input")
 
     dates = get_date_range()
     date_strs = [d.strftime("%Y-%m-%d") for d in dates]
     time_slots = get_time_slots()
 
-    # Create an empty DataFrame for the grid
+    # Create DataFrame for the grid
     # Users will check boxes (True/False)
     # Rows: Time Slots, Columns: Dates
     df_template = pd.DataFrame(False, index=time_slots, columns=date_strs)
+    
+    # If user has existing submission, pre-populate the grid
+    if existing_entry:
+        st.info(f"📝 Editing existing submission for {name}. Your previous availability is loaded below.")
+        for slot_iso in existing_entry["availability"]:
+            parts = slot_iso.split("T")
+            if len(parts) == 2:
+                date_part = parts[0]
+                time_part = parts[1][:5]  # HH:MM
+                if date_part in date_strs and time_part in time_slots:
+                    df_template.at[time_part, date_part] = True
 
     st.subheader("Select Free Time Blocks")
     edited_df = st.data_editor(
         df_template,
         use_container_width=True,
         height=600,
-        key="availability_grid"
+        key=f"availability_grid_{name}"  # Unique key per user to avoid caching issues
     )
 
-    if st.button("Submit Availability"):
+    # Determine button text based on whether user is editing
+    button_text = "Update Availability" if existing_entry else "Submit Availability"
+    
+    if st.button(button_text):
         if not name:
             st.error("Please enter your name.")
             return
@@ -105,11 +132,16 @@ def page_input():
         # Load existing data, remove old entry for this name if exists, and append new
         current_data = load_data()
         # Filter out previous submission by same name to allow updates
+        was_update = any(d["name"] == name for d in current_data)
         current_data = [d for d in current_data if d["name"] != name]
         current_data.append(entry)
         
         save_data(current_data)
-        st.success(f"Availability saved for {name} ({role})!")
+        
+        if was_update:
+            st.success(f"✅ Availability updated for {name} ({role})!")
+        else:
+            st.success(f"✅ Availability saved for {name} ({role})!")
 
 # --- Page: Admin Dashboard ---
 
